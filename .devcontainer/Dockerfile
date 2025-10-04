@@ -31,3 +31,6 @@ RUN mkdir -p /workspaces/grocy \
   && python3 -m venv /workspaces/grocy/.venv \
   && /workspaces/grocy/.venv/bin/python -m pip install -U pip setuptools wheel || true
 
+# Also create a prebuilt venv in /opt/venv to copy into the workspace at runtime
+RUN python3 -m venv /opt/venv && /opt/venv/bin/python -m pip install -U pip setuptools wheel || true
+

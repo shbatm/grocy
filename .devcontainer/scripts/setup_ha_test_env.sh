@@ -10,7 +10,13 @@ echo "Setting up Home Assistant test environment..."
 
 # Create venv
 if [ ! -d "${VENV_DIR}" ]; then
-    python3 -m venv "${VENV_DIR}"
+    # If the image provided a prebuilt venv at /opt/venv, copy it to the workspace
+    if [ -d "/opt/venv" ]; then
+        echo "Copying prebuilt venv from /opt/venv into workspace .venv"
+        cp -a /opt/venv "${VENV_DIR}"
+    else
+        python3 -m venv "${VENV_DIR}"
+    fi
 fi
 # Ensure venv has pip bootstrapped (Debian images may not include pip in venvs)
 if [ ! -f "${VENV_DIR}/bin/pip" ]; then
