@@ -14,7 +14,9 @@ if [ ! -d "${VENV_DIR}" ]; then
 fi
 source "${VENV_DIR}/bin/activate"
 
-python -m pip install -U pip setuptools wheel
+# Use the venv python explicitly to avoid PEP 668 / externally-managed-environment issues
+VENV_PYTHON="${VENV_DIR}/bin/python"
+$VENV_PYTHON -m pip install -U pip setuptools wheel
 
 export PIP_CACHE_DIR="/workspaces/.cache/pip"
 WHEEL_DIR="/workspaces/.wheels"
@@ -25,17 +27,17 @@ echo "Installing Home Assistant from PyPI (pre-release allowed) into venv..."
 # Try to build a wheelhouse first (cached under $WHEEL_DIR) to speed up future builds
 set +e
 echo "Attempting to build wheelhouse for Home Assistant (cached at $WHEEL_DIR) -- this may take a while on first run..."
-python -m pip wheel --wheel-dir "$WHEEL_DIR" --pre "homeassistant[tests]" || true
+${VENV_PYTHON} -m pip wheel --wheel-dir "$WHEEL_DIR" --pre "homeassistant[tests]" || true
 set -e
 
 # If we have wheels, install from the wheelhouse (fast); otherwise install from PyPI (prefer binary)
 if [ -n "$(ls -A "$WHEEL_DIR" 2>/dev/null)" ]; then
     echo "Found prebuilt wheels in $WHEEL_DIR, installing from wheelhouse..."
-    python -m pip install --no-index --find-links "$WHEEL_DIR" --pre "homeassistant[tests]"
+    ${VENV_PYTHON} -m pip install --no-index --find-links "$WHEEL_DIR" --pre "homeassistant[tests]"
 else
     echo "No wheelhouse found, installing Home Assistant from PyPI (this may compile some wheels)..."
-    python -m pip install --pre --prefer-binary "homeassistant[tests]" || \
-        (echo "Fallback: trying homeassistant[dev] then homeassistant" && python -m pip install --pre "homeassistant[dev]" || python -m pip install --pre "homeassistant")
+    ${VENV_PYTHON} -m pip install --pre --prefer-binary "homeassistant[tests]" || \
+        (echo "Fallback: trying homeassistant[dev] then homeassistant" && ${VENV_PYTHON} -m pip install --pre "homeassistant[dev]" || ${VENV_PYTHON} -m pip install --pre "homeassistant")
 fi
 
 cd "${WORKSPACE_DIR}"
@@ -43,11 +45,11 @@ cd "${WORKSPACE_DIR}"
 # Install integration-specific requirements from manifest.json
 if command -v jq >/dev/null 2>&1; then
     for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do
-        python -m pip install "$req"
+    ${VENV_PYTHON} -m pip install "$req"
     done
 fi
 
 # Ensure pytest available
-python -m pip install -U pytest pytest-asyncio
+${VENV_PYTHON} -m pip install -U pytest pytest-asyncio
 
 echo "Setup complete. Activate the venv with: source ${VENV_DIR}/bin/activate"
