@@ -16,16 +16,27 @@ source "${VENV_DIR}/bin/activate"
 
 python -m pip install -U pip setuptools wheel
 
+export PIP_CACHE_DIR="/workspaces/.cache/pip"
+WHEEL_DIR="/workspaces/.wheels"
+mkdir -p "$PIP_CACHE_DIR" "$WHEEL_DIR"
+echo "Using pip cache: $PIP_CACHE_DIR"
 
 echo "Installing Home Assistant from PyPI (pre-release allowed) into venv..."
-# Try to install the latest pre-release (beta) of homeassistant with tests extras
+# Try to build a wheelhouse first (cached under $WHEEL_DIR) to speed up future builds
 set +e
-python -m pip install --pre "homeassistant[tests]"
-if [ $? -ne 0 ]; then
-    echo "Failed to install homeassistant[tests], trying homeassistant[dev] then homeassistant"
-    python -m pip install --pre "homeassistant[dev]" || python -m pip install --pre "homeassistant"
-fi
+echo "Attempting to build wheelhouse for Home Assistant (cached at $WHEEL_DIR) -- this may take a while on first run..."
+python -m pip wheel --wheel-dir "$WHEEL_DIR" --pre "homeassistant[tests]" || true
 set -e
+
+# If we have wheels, install from the wheelhouse (fast); otherwise install from PyPI (prefer binary)
+if [ -n "$(ls -A "$WHEEL_DIR" 2>/dev/null)" ]; then
+    echo "Found prebuilt wheels in $WHEEL_DIR, installing from wheelhouse..."
+    python -m pip install --no-index --find-links "$WHEEL_DIR" --pre "homeassistant[tests]"
+else
+    echo "No wheelhouse found, installing Home Assistant from PyPI (this may compile some wheels)..."
+    python -m pip install --pre --prefer-binary "homeassistant[tests]" || \
+        (echo "Fallback: trying homeassistant[dev] then homeassistant" && python -m pip install --pre "homeassistant[dev]" || python -m pip install --pre "homeassistant")
+fi
 
 cd "${WORKSPACE_DIR}"
 
