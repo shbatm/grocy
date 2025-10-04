@@ -15,8 +15,26 @@ fi
 # Ensure venv has pip bootstrapped (Debian images may not include pip in venvs)
 if [ ! -f "${VENV_DIR}/bin/pip" ]; then
     echo "Bootstrapping pip into venv..."
-    # Try to use the venv python to run ensurepip; fall back to system python3
-    "${VENV_DIR}/bin/python" -m ensurepip --upgrade 2>/dev/null || python3 -m ensurepip --upgrade 2>/dev/null || true
+    # Try ensurepip first (may be disabled on some distros)
+    if "${VENV_DIR}/bin/python" -m ensurepip --upgrade 2>/dev/null; then
+        echo "ensurepip succeeded"
+    else
+        echo "ensurepip unavailable or failed; attempting to bootstrap pip with get-pip.py"
+        # Download get-pip.py and install into the venv
+        if command -v curl >/dev/null 2>&1; then
+            curl -sS https://bootstrap.pypa.io/get-pip.py -o /tmp/get-pip.py || true
+        elif command -v wget >/dev/null 2>&1; then
+            wget -q -O /tmp/get-pip.py https://bootstrap.pypa.io/get-pip.py || true
+        else
+            echo "Neither curl nor wget available to download get-pip.py; pip bootstrapping may fail"
+        fi
+        if [ -f /tmp/get-pip.py ]; then
+            "${VENV_DIR}/bin/python" /tmp/get-pip.py --upgrade
+            rm -f /tmp/get-pip.py
+        else
+            echo "get-pip.py not available; continuing and hoping pip is present elsewhere"
+        fi
+    fi
 fi
 
 source "${VENV_DIR}/bin/activate"
