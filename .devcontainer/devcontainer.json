@@ -6,7 +6,7 @@
 	"appPort": [
 		"9123:8123"
 	],
-	"postCreateCommand": ".devcontainer/scripts/setup_ha_test_env.sh || (for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python -m pip install $req; done && container install)",
+	"postCreateCommand": ".devcontainer/scripts/setup_ha_test_env.sh || (for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python3 -m pip install $req; done && container install)",
 	"customizations": {
 		"vscode": {
 			"extensions": [
