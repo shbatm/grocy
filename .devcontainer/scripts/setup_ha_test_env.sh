@@ -12,11 +12,18 @@ echo "Setting up Home Assistant test environment..."
 if [ ! -d "${VENV_DIR}" ]; then
     python3 -m venv "${VENV_DIR}"
 fi
+# Ensure venv has pip bootstrapped (Debian images may not include pip in venvs)
+if [ ! -f "${VENV_DIR}/bin/pip" ]; then
+    echo "Bootstrapping pip into venv..."
+    # Try to use the venv python to run ensurepip; fall back to system python3
+    "${VENV_DIR}/bin/python" -m ensurepip --upgrade 2>/dev/null || python3 -m ensurepip --upgrade 2>/dev/null || true
+fi
+
 source "${VENV_DIR}/bin/activate"
 
 # Use the venv python explicitly to avoid PEP 668 / externally-managed-environment issues
 VENV_PYTHON="${VENV_DIR}/bin/python"
-$VENV_PYTHON -m pip install -U pip setuptools wheel
+${VENV_PYTHON} -m pip install -U pip setuptools wheel
 
 export PIP_CACHE_DIR="/workspaces/.cache/pip"
 WHEEL_DIR="/workspaces/.wheels"
