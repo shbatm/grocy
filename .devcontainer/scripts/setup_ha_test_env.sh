@@ -4,7 +4,16 @@ set -euo pipefail
 # Variables
 HA_CORE_DIR="/workspaces/home-assistant-core"
 WORKSPACE_DIR="/workspaces/grocy"
-VENV_DIR="${WORKSPACE_DIR}/.venv"
+WORK_VENV_DIR="${WORKSPACE_DIR}/.venv"
+ALT_VENV_DIR="/opt/venv"
+
+# Prefer the image-provided /opt/venv when usable (avoids workspace mount masking issues)
+if [ -x "${ALT_VENV_DIR}/bin/python" ] && "${ALT_VENV_DIR}/bin/python" -m pip --version >/dev/null 2>&1; then
+    echo "Using image-provided venv at ${ALT_VENV_DIR}"
+    VENV_DIR="${ALT_VENV_DIR}"
+else
+    VENV_DIR="${WORK_VENV_DIR}"
+fi
 
 echo "Setting up Home Assistant test environment..."
 
