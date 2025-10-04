@@ -41,13 +41,16 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     """Set up this integration using UI."""
     _LOGGER.info(STARTUP_MESSAGE)
 
-    coordinator: GrocyDataUpdateCoordinator = GrocyDataUpdateCoordinator(hass)
+    coordinator: GrocyDataUpdateCoordinator = GrocyDataUpdateCoordinator(
+        hass, config_entry
+    )
     coordinator.available_entities = await _async_get_available_entities(
         coordinator.grocy_data
     )
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})
-    hass.data[DOMAIN] = coordinator
+    # store coordinator per config entry id to support multiple installs
+    hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
     await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
     await async_setup_services(hass, config_entry)
@@ -62,7 +65,8 @@ async def async_unload_entry(hass: HomeAssistant, config_entry: ConfigEntry) -> 
     if unloaded := await hass.config_entries.async_unload_platforms(
         config_entry, PLATFORMS
     ):
-        del hass.data[DOMAIN]
+        # remove the per-entry coordinator
+        hass.data.get(DOMAIN, {}).pop(config_entry.entry_id, None)
 
     return unloaded
 
