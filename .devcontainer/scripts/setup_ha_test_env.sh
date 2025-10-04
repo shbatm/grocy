@@ -18,6 +18,22 @@ if [ ! -d "${VENV_DIR}" ]; then
         python3 -m venv "${VENV_DIR}"
     fi
 fi
+
+# If .venv exists but pip is missing or unusable, replace it with prebuilt /opt/venv
+if [ -d "${VENV_DIR}" ]; then
+    if ! "${VENV_DIR}/bin/python" -m pip --version >/dev/null 2>&1; then
+        echo "Workspace .venv exists but pip not usable. Attempting to replace with /opt/venv"
+        if [ -d "/opt/venv" ]; then
+            echo "Removing existing workspace .venv and copying /opt/venv"
+            rm -rf "${VENV_DIR}"
+            cp -a /opt/venv "${VENV_DIR}"
+        else
+            echo "/opt/venv not available; will try to bootstrap pip in-place"
+            "${VENV_DIR}/bin/python" -m ensurepip --upgrade 2>/dev/null || true
+            "${VENV_DIR}/bin/python" -m pip install -U pip setuptools wheel || true
+        fi
+    fi
+fi
 # Ensure venv has pip bootstrapped (Debian images may not include pip in venvs)
 if [ ! -f "${VENV_DIR}/bin/pip" ]; then
     echo "Bootstrapping pip into venv..."
