@@ -7,9 +7,12 @@ RUN apt-get update && \
       build-essential \
       python3-dev \
       python3-venv \
-      python3-pip \
-      python3-distutils \
-      python3-full \
+  python3-pip \
+  # python3-distutils is not available on some Debian releases (e.g. trixie).
+  # Use python3-setuptools which provides the necessary distutils support
+  # for building Python packages on these images.
+  python3-setuptools \
+  python3-full \
       git \
       curl \
       jq \
@@ -21,3 +24,10 @@ RUN apt-get update && \
       pkg-config \
       cargo \
     && rm -rf /var/lib/apt/lists/*
+
+# Create a venv for the workspace during image build so pip is available
+# This avoids bootstrapping pip at container runtime which can hit PEP 668 issues
+RUN mkdir -p /workspaces/grocy \
+  && python3 -m venv /workspaces/grocy/.venv \
+  && /workspaces/grocy/.venv/bin/python -m pip install -U pip setuptools wheel || true
+
