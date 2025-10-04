@@ -1,6 +1,6 @@
 {
-	"image": "mcr.microsoft.com/vscode/devcontainers/base:debian",
 	"build": {
+		"dockerfile": "Dockerfile",
 		"context": ".."
 	},
 	"appPort": [
