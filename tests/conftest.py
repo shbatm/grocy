@@ -7,6 +7,11 @@ collection. This is a minimal, temporary shim — long-term, tests
 should use Home Assistant's test harness fixtures and not rely on
 local path hacks.
 """
+# Load Home Assistant pytest plugin when available so fixtures like `hass`
+# and `mock_config_entry` are provided. This is a no-op if Home Assistant is
+# not installed in the environment.
+pytest_plugins = ("homeassistant",)
+
 import os
 import sys
 

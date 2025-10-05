@@ -6,7 +6,7 @@
 	"appPort": [
 		"9123:8123"
 	],
-	"postCreateCommand": "bash .devcontainer/scripts/setup_ha_test_env.sh || (for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python3 -m pip install $req; done && container install)",
+	"postCreateCommand": "bash .devcontainer/scripts/setup_ha_test_env.sh || (for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python3 -m pip install $req; done && container install); if [ ! -d \".homeassistant\" ] || [ ! -f \".homeassistant/configuration.yaml\" ]; then bash .devcontainer/scripts/setup_homeassistant_runtime.sh; else echo '.homeassistant exists, skipping runtime setup'; fi",
 	"customizations": {
 		"vscode": {
 			"extensions": [
