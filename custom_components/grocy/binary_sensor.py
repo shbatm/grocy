@@ -36,7 +36,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Setup binary sensor platform."""
-    coordinator: GrocyDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: GrocyDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]
     entities = []
     for description in BINARY_SENSORS:
         if description.exists_fn(coordinator.available_entities):

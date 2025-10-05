@@ -29,6 +29,7 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
     def __init__(
         self,
         hass: HomeAssistant,
+        config_entry,
     ) -> None:
         """Initialize Grocy data update coordinator."""
         super().__init__(
@@ -37,6 +38,9 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
             name=DOMAIN,
             update_interval=SCAN_INTERVAL,
         )
+
+        # store the related config entry for entity/device identification
+        self.config_entry = config_entry
 
         url = self.config_entry.data[CONF_URL]
         api_key = self.config_entry.data[CONF_API_KEY]
@@ -72,3 +76,20 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
                 raise UpdateFailed(f"Update failed: {error}") from error
 
         return data
+
+    async def async_force_update_entity(self, entity_key: str) -> None:
+        """Force immediate update of an entity by key.
+
+        Finds the first registered entity whose description.key matches
+        `entity_key` and forces an immediate state refresh.
+        """
+        entity = next(
+            (
+                entity
+                for entity in self.entities
+                if entity.entity_description.key == entity_key
+            ),
+            None,
+        )
+        if entity:
+            await entity.async_update_ha_state(force_refresh=True)

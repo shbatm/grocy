@@ -1,26 +1,32 @@
 {
-	"image": "ghcr.io/ludeeus/devcontainer/integration:stable",
-	"context": "..",
+	"build": {
+		"dockerfile": "Dockerfile",
+		"context": ".."
+	},
 	"appPort": [
 		"9123:8123"
 	],
-	"postCreateCommand": "for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python -m pip install $req; done && container install",
-	"extensions": [
-		"ms-python.python",
-		"github.vscode-pull-request-github",
-		"tabnine.tabnine-vscode",
-		"ms-python.vscode-pylance"
-	],
-	"settings": {
-		"files.eol": "\n",
-		"editor.tabSize": 4,
-		"python.pythonPath": "/usr/bin/python3",
-		"python.linting.pylintEnabled": true,
-		"python.linting.enabled": true,
-		"python.formatting.provider": "black",
-		"editor.formatOnPaste": false,
-		"editor.formatOnSave": true,
-		"editor.formatOnType": true,
-		"files.trimTrailingWhitespace": true
+	"postCreateCommand": "bash .devcontainer/scripts/setup_ha_test_env.sh || (for req in $(jq -c -r '.requirements | .[]' custom_components/grocy/manifest.json); do python3 -m pip install $req; done && container install); if [ ! -d \".homeassistant\" ] || [ ! -f \".homeassistant/configuration.yaml\" ]; then bash .devcontainer/scripts/setup_homeassistant_runtime.sh; else echo '.homeassistant exists, skipping runtime setup'; fi",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"github.vscode-pull-request-github",
+				"tabnine.tabnine-vscode",
+				"ms-python.vscode-pylance"
+			],
+			"settings": {
+				"files.eol": "\n",
+				"editor.tabSize": 4,
+				"python.pythonPath": "/usr/bin/python3",
+				"python.linting.pylintEnabled": true,
+				"python.linting.enabled": true,
+				"python.formatting.provider": "black",
+				"editor.formatOnPaste": false,
+				"editor.formatOnSave": true,
+				"editor.formatOnType": true,
+				"files.trimTrailingWhitespace": true
+			}
+		}
 	}
 }

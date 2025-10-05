@@ -42,7 +42,9 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ):
     """Setup sensor platform."""
-    coordinator: GrocyDataUpdateCoordinator = hass.data[DOMAIN]
+    coordinator: GrocyDataUpdateCoordinator = hass.data[DOMAIN][
+        config_entry.entry_id
+    ]
     entities = []
     for description in SENSORS:
         if description.exists_fn(coordinator.available_entities):
