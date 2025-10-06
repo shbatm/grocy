@@ -17,6 +17,7 @@ CONF_URL: Final = "url"
 CONF_PORT: Final = "port"
 CONF_API_KEY: Final = "api_key"
 CONF_VERIFY_SSL: Final = "verify_ssl"
+CONF_CREATE_CHORE_BUTTONS: Final = "create_chore_buttons"
 
 STARTUP_MESSAGE: Final = f"""
 -------------------------------------------------------------------

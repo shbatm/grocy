@@ -9,6 +9,18 @@
                     "port": "Port Number (9192)",
                     "verify_ssl": "Verify SSL Certificate"
                 }
+            },
+            "options": {
+                "title": "Grocy options",
+                "data": {
+                    "create_chore_buttons": "Create chore 'Execute' button entities"
+                },
+                "description": {
+                    "create_chore_buttons": "When enabled, Grocy will create a button entity per chore under the 'Grocy Chores' device allowing you to execute chores from Home Assistant. Disable to keep Grocy from creating these dynamic button entities."
+                },
+                "description_placeholders": {
+                    "create_chore_buttons": "When enabled, Grocy will create a button entity per chore under the 'Grocy Chores' device allowing you to execute chores from Home Assistant. Disable to keep Grocy from creating these dynamic button entities."
+                }
             }
         },
         "error": {
@@ -16,6 +28,22 @@
         },
         "abort": {
             "single_instance_allowed": "Only a single configuration of Grocy is allowed."
+        }
+    },
+    "options": {
+        "step": {
+            "init": {
+                "title": "Grocy options",
+                "data": {
+                    "create_chore_buttons": "Create chore 'Execute' button entities"
+                },
+                "description": {
+                    "create_chore_buttons": "When enabled, Grocy will create a button entity per chore under the 'Grocy Chores' device allowing you to execute chores from Home Assistant. Disable to keep Grocy from creating these dynamic button entities."
+                },
+                "description_placeholders": {
+                    "create_chore_buttons": "When enabled, Grocy will create a button entity per chore under the 'Grocy Chores' device allowing you to execute chores from Home Assistant. Disable to keep Grocy from creating these dynamic button entities."
+                }
+            }
         }
     }
 }

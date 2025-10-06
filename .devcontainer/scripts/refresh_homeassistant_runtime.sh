@@ -2,7 +2,7 @@
 # Idempotent refresh helper for .homeassistant runtime folder.
 # Use when you want to re-copy the default configuration or re-create the symlink.
 set -euo pipefail
-repo_root="$(cd "$(dirname "$0")/.." && pwd -P)"
+repo_root="$(cd "$(dirname "$0")/../" && pwd -P)"
 cd "$repo_root"
 
 echo "[refresh_homeassistant_runtime] repo_root=$repo_root"

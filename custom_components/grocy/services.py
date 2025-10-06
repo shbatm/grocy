@@ -4,7 +4,6 @@ from __future__ import annotations
 import voluptuous as vol
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant, ServiceCall
-from pygrocy2.grocy import EntityType, TransactionType
 from datetime import datetime
 
 from .const import ATTR_CHORES, ATTR_TASKS, DOMAIN
@@ -267,11 +266,19 @@ async def async_consume_product_service(hass, coordinator, data):
     spoiled = data.get(SERVICE_SPOILED, False)
     allow_subproduct_substitution = data.get(SERVICE_SUBPRODUCT_SUBSTITUTION, False)
 
-    transaction_type_raw = data.get(SERVICE_TRANSACTION_TYPE, None)
-    transaction_type = TransactionType.CONSUME
+    # Import TransactionType lazily to avoid raising at module import time
+    # when pygrocy2 is not installed in the development environment.
+    try:
+        from pygrocy2.grocy import TransactionType
+    except Exception:  # pragma: no cover - environment dependent
+        transaction_type_raw = data.get(SERVICE_TRANSACTION_TYPE, None)
+        transaction_type = None
+    else:
+        transaction_type_raw = data.get(SERVICE_TRANSACTION_TYPE, None)
+        transaction_type = TransactionType.CONSUME
 
-    if transaction_type_raw is not None:
-        transaction_type = TransactionType[transaction_type_raw]
+        if transaction_type_raw is not None:
+            transaction_type = TransactionType[transaction_type_raw]
 
     def wrapper():
         coordinator.grocy_api.consume_product(
@@ -314,11 +321,19 @@ async def async_complete_task_service(hass, coordinator, data):
 
 async def async_add_generic_service(hass, coordinator, data):
     """Add a generic entity in Grocy."""
-    entity_type_raw = data.get(SERVICE_ENTITY_TYPE, None)
-    entity_type = EntityType.TASKS
+    # Import EntityType lazily so the module can be imported when pygrocy2
+    # isn't available in the dev environment.
+    try:
+        from pygrocy2.grocy import EntityType
+    except Exception:  # pragma: no cover - environment dependent
+        entity_type_raw = data.get(SERVICE_ENTITY_TYPE, None)
+        entity_type = entity_type_raw
+    else:
+        entity_type_raw = data.get(SERVICE_ENTITY_TYPE, None)
+        entity_type = EntityType.TASKS
 
-    if entity_type_raw is not None:
-        entity_type = EntityType(entity_type_raw)
+        if entity_type_raw is not None:
+            entity_type = EntityType(entity_type_raw)
 
     data = data[SERVICE_DATA]
 
