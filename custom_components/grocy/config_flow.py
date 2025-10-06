@@ -1,14 +1,19 @@
 """Adds config flow for Grocy."""
-import logging
 from collections import OrderedDict
+import logging
+from typing import TYPE_CHECKING
 
-import voluptuous as vol
 from homeassistant import config_entries
-from homeassistant.core import callback
 from homeassistant.config_entries import OptionsFlowWithReload
+from homeassistant.core import callback
+import voluptuous as vol
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
 
 from .const import (
     CONF_API_KEY,
+    CONF_CREATE_CHORE_BUTTONS,
     CONF_PORT,
     CONF_URL,
     CONF_VERIFY_SSL,
@@ -17,7 +22,6 @@ from .const import (
     NAME,
 )
 from .helpers import extract_base_url_and_path
-from .const import CONF_CREATE_CHORE_BUTTONS
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -115,8 +119,8 @@ class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
             # would cause the config flow to be marked 'Not implemented'.
             try:
                 from pygrocy2.grocy import Grocy
-            except Exception as err:  # pragma: no cover - environment dependent
-                _LOGGER.error("pygrocy2 is not available: %s", err)
+            except Exception:  # pragma: no cover - environment dependent
+                _LOGGER.exception("pygrocy2 is not available during config flow")
                 return False
 
             (base_url, path) = extract_base_url_and_path(url)
@@ -130,8 +134,8 @@ class GrocyFlowHandler(config_entries.ConfigFlow, domain=DOMAIN):
 
             await self.hass.async_add_executor_job(system_info)
             return True
-        except Exception as error:  # pylint: disable=broad-except
-            _LOGGER.error(error)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Error while testing credentials")
         return False
 
 
@@ -149,9 +153,13 @@ class GrocyOptionsFlowHandler(OptionsFlowWithReload):
         self._options = {}
 
     async def async_step_init(self, user_input=None):
-        from .const import CONF_CREATE_CHORE_BUTTONS
+        """Show and handle the options form for the config entry."""
 
-        _LOGGER.debug("Opening options flow for entry_id=%s current options=%s", getattr(self.config_entry, "entry_id", None), getattr(self.config_entry, "options", None))
+        _LOGGER.debug(
+            "Opening options flow for entry_id=%s current options=%s",
+            getattr(self.config_entry, "entry_id", None),
+            getattr(self.config_entry, "options", None),
+        )
 
         if user_input is not None:
             # Let OptionsFlowWithReload handle persisting the options and
@@ -233,8 +241,8 @@ class GrocyOptionsFlowHandler(OptionsFlowWithReload):
             # would cause the config flow to be marked 'Not implemented'.
             try:
                 from pygrocy2.grocy import Grocy
-            except Exception as err:  # pragma: no cover - environment dependent
-                _LOGGER.error("pygrocy2 is not available: %s", err)
+            except Exception:  # pragma: no cover - environment dependent
+                _LOGGER.exception("pygrocy2 is not available during options flow")
                 return False
 
             (base_url, path) = extract_base_url_and_path(url)
@@ -248,6 +256,6 @@ class GrocyOptionsFlowHandler(OptionsFlowWithReload):
 
             await self.hass.async_add_executor_job(system_info)
             return True
-        except Exception as error:  # pylint: disable=broad-except
-            _LOGGER.error(error)
+        except Exception:  # pylint: disable=broad-except
+            _LOGGER.exception("Error while testing credentials")
         return False

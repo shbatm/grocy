@@ -1,0 +1,61 @@
+[tool.ruff]
+required-version = ">=0.13.0"
+
+[tool.ruff.lint]
+# A focused selection inspired by Home Assistant's configuration. This
+# is a practical subset to run ruff locally in this repository.
+select = [
+  "A001",
+  "ASYNC",
+  "B",
+  "BLE",
+  "C",
+  "COM818",
+  "D",
+  "DTZ003",
+  "E",
+  "F",
+  "FLY",
+  "FURB",
+  "G",
+  "I",
+  "INP",
+  "ISC",
+  "ICN001",
+  "LOG",
+  "N804",
+  "N805",
+  "N815",
+  "PERF",
+  "PIE",
+  "PL",
+  "PT",
+  "PTH",
+  "PYI",
+  "RET",
+  "RSE",
+  "RUF",
+  "S",
+  "SIM",
+  "SLF",
+  "SLOT",
+  "T",
+  "TC",
+  "TRY",
+  "UP",
+  "W",
+]
+
+# Ignore some rules that Home Assistant disables globally (notably long lines)
+ignore = [
+  "E501",
+]
+
+[tool.ruff.lint.isort]
+force-sort-within-sections = true
+combine-as-imports = true
+split-on-trailing-comma = false
+
+[tool.ruff.lint.per-file-ignores]
+# Allow main scripts to write to stdout
+"custom_components/grocy/__init__.py" = ["T201"]
