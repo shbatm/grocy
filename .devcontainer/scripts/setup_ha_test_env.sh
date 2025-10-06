@@ -152,7 +152,8 @@ if command -v jq >/dev/null 2>&1; then
     done
 fi
 
-# Ensure pytest available
-${VENV_PYTHON} -m pip install -U pytest pytest-asyncio
+# Ensure pytest and the Home Assistant pytest plugin are available
+# `pytest-homeassistant-custom-component` provides the `hass` fixture and helpers
+${VENV_PYTHON} -m pip install -U pytest pytest-asyncio pytest-homeassistant-custom-component
 
 echo "Setup complete. Activate the venv with: source ${VENV_DIR}/bin/activate"

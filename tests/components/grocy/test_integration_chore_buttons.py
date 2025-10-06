@@ -6,6 +6,7 @@ fixtures such as `hass`, `mock_config_entry`, `entity_registry`, and
 """
 from __future__ import annotations
 
+from pytest_homeassistant_custom_component.common import MockConfigEntry
 from custom_components.grocy.button import _extract_chore_fields, GrocyButtonEntity, GrocyButtonEntityDescription
 
 
@@ -20,7 +21,7 @@ def test_chore_buttons_created_unit():
 
     # Minimal coordinator-like container
     coordinator = type("C", (), {})()
-    coordinator.config_entry = type("E", (), {"entry_id": "test-entry"})()
+    coordinator.config_entry = MockConfigEntry(domain="grocy", data={}, entry_id="test-entry")
     coordinator.data = {"chores": chores_data}
     coordinator.entities = []
 
