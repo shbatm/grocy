@@ -1,25 +1,26 @@
+
 """Button platform for Grocy chores."""
 from __future__ import annotations
 
-import logging
 from dataclasses import dataclass
-from typing import Any, List
+import contextlib
+import json
+import logging
+from typing import Any, TYPE_CHECKING
+
+from homeassistant.components.button import ButtonEntity, ButtonEntityDescription
+from homeassistant.helpers import entity_registry as er
 from homeassistant.util import dt as dt_util
 
-from homeassistant.components.button import (
-    ButtonEntity,
-    ButtonEntityDescription,
-)
-from homeassistant.config_entries import ConfigEntry
-from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity_platform import AddEntitiesCallback
-
-from .const import ATTR_CHORES, CHORES, DOMAIN, CONF_CREATE_CHORE_BUTTONS
-from .coordinator import GrocyDataUpdateCoordinator
+from .const import ATTR_CHORES, CONF_CREATE_CHORE_BUTTONS, DOMAIN
 from .entity import GrocyEntity
-from homeassistant.helpers import entity_registry as er
 from .json_encoder import CustomJSONEncoder
-import json
+
+if TYPE_CHECKING:
+    from homeassistant.config_entries import ConfigEntry
+    from homeassistant.core import HomeAssistant
+    from homeassistant.helpers.entity_platform import AddEntitiesCallback
+    from .coordinator import GrocyDataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -29,11 +30,18 @@ async def async_setup_entry(
     config_entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ):
-    """Setup button platform."""
+    """Set up the Grocy chore button platform.
+
+    This will create per-chore "Execute" Button entities when the
+    integration option to create chore buttons is enabled and the Grocy
+    installation exposes the chores feature. The function registers a
+    coordinator listener to dynamically add and mark as unavailable
+    chore entities when the chores list changes.
+    """
     coordinator: GrocyDataUpdateCoordinator = hass.data[DOMAIN][
         config_entry.entry_id
     ]
-    entities: List[GrocyButtonEntity] = []
+    entities: list[GrocyButtonEntity] = []
 
     # Respect the integration option to create chore buttons. Options flow
     # stores the boolean under CONF_CREATE_CHORE_BUTTONS; default to True
@@ -44,9 +52,15 @@ async def async_setup_entry(
         # Prefer config_entry.options (set via options flow); fall back to
         # config_entry.data for older entries.
         create_buttons = bool(
-            config_entry.options.get(CONF_CREATE_CHORE_BUTTONS, config_entry.data.get(CONF_CREATE_CHORE_BUTTONS, False))
+            config_entry.options.get(
+                CONF_CREATE_CHORE_BUTTONS,
+                config_entry.data.get(CONF_CREATE_CHORE_BUTTONS, False),
+            )
         )
-    except Exception:
+    except (AttributeError, KeyError) as err:
+        # Options structure missing or malformed; treat as enabled to
+        # preserve backward compatibility during upgrades.
+        _LOGGER.debug("Failed to read create_chore_buttons option: %s", err)
         create_buttons = True
 
     # Only create buttons if chores are available and the option enables them
@@ -62,7 +76,9 @@ async def async_setup_entry(
         # setup time to create the button entities.
         try:
             chores_data = await coordinator.grocy_data.async_update_data(ATTR_CHORES) or []
-        except Exception as err:  # pragma: no cover - best-effort
+        except (AttributeError, RuntimeError, TypeError) as err:  # pragma: no cover - best-effort
+            # Best-effort: if Grocy client or coordinator isn't available
+            # treat as no chores rather than failing setup.
             _LOGGER.debug("Failed to fetch chores during setup: %s", err)
             chores_data = []
 
@@ -99,11 +115,10 @@ async def async_setup_entry(
     # buttons dynamically. This must be defined inside this setup function so
     # it closes over `hass`, `coordinator` and `async_add_entities`.
     def _handle_coordinator_update() -> None:
-        """Synchronous listener scheduled by the coordinator.
+        """Handle coordinator updates and schedule async work.
 
         The DataUpdateCoordinator invokes listeners synchronously (without
-        awaiting), so we must schedule any async work explicitly using
-        hass.async_create_task.
+        awaiting), so we schedule async work with hass.async_create_task.
         """
 
         async def _async_work() -> None:
@@ -119,7 +134,7 @@ async def async_setup_entry(
             if chores_data is None:
                 try:
                     chores_data = await coordinator.grocy_data.async_update_data(ATTR_CHORES) or []
-                except Exception as err:  # pragma: no cover - best-effort fetch
+                except (AttributeError, RuntimeError, TypeError) as err:  # pragma: no cover - best-effort fetch
                     _LOGGER.debug("Failed to fetch chores during coordinator update: %s", err)
                     chores_data = []
 
@@ -178,7 +193,9 @@ async def async_setup_entry(
                                 disabled_by = getattr(entry, "disabled_by", None)
                                 if disabled_by is None:
                                     safe_to_remove = True
-                    except Exception:
+                    except (AttributeError, TypeError) as err:  # pragma: no cover - defensive
+                        # Defensive catch: registry shape may vary across HA versions
+                        _LOGGER.debug("Error while checking registry entry for safe removal: %s", err)
                         safe_to_remove = False
 
                     if safe_to_remove:
@@ -189,14 +206,17 @@ async def async_setup_entry(
                             # Coordinator entities are instances of our
                             # GrocyButtonEntity; mark them unavailable so the
                             # frontend shows them as not currently usable.
-                            setattr(entity, "_attr_available", False)
-                        except Exception:
+                            # Accessing a protected attribute here mirrors
+                            # other HA integrations' patterns.
+                            entity._attr_available = False  # noqa: SLF001
+                        except (AttributeError, RuntimeError, TypeError) as err:  # pragma: no cover - defensive
                             # Best-effort: if we can't mark unavailable, just
                             # leave the entity in place and continue.
                             _LOGGER.debug(
-                                "Failed to mark entity %s unavailable for chore %s",
+                                "Failed to mark entity %s unavailable for chore %s: %s",
                                 getattr(entity, "entity_id", "<unknown>"),
                                 removed_id,
+                                err,
                             )
 
         # Schedule the async work without awaiting here
@@ -241,9 +261,10 @@ def _extract_chore_fields(item) -> tuple[int | None, str]:
             d = item.as_dict()
             chore_id = d.get("chore_id") or d.get("id") or d.get("object_id")
             chore_name = d.get("chore_name") or d.get("name") or d.get("title")
+        except (AttributeError, TypeError, ValueError) as err:
+            _LOGGER.debug("as_dict() failed on chore item: %s (%s)", item, err)
+        else:
             return (chore_id, chore_name or f"Chore {chore_id}")
-        except Exception:
-            _LOGGER.debug("as_dict() failed on chore item: %s", item)
 
     # object attributes fallback
     chore_id = getattr(item, "chore_id", None) or getattr(item, "id", None)
@@ -267,15 +288,24 @@ class GrocyButtonEntity(GrocyEntity, ButtonEntity):
         chore_id: int,
         device_suffix: str | None = None,
     ) -> None:
-        # Allow grouping this entity under a different device by passing
-        # device_suffix to the base GrocyEntity.
+        """Initialize the chore-executing button entity.
+
+        The entity is grouped under an optional device suffix (so chores can
+        live under a separate device). We attempt to set a deterministic
+        unique id derived from the config entry and description key. This is
+        a best-effort operation: failures fall back to the default
+        GrocyEntity behavior.
+        """
         super().__init__(coordinator, description, config_entry, device_suffix=device_suffix)
-        # Use a clear separator to avoid accidental collisions with other ids
-        try:
+
+        # Use a clear separator to avoid accidental collisions with other ids.
+        # Prefer to set a deterministic unique id; if anything goes wrong
+        # fall back silently to the default behavior implemented by
+        # GrocyEntity.
+        with contextlib.suppress(Exception):
             self._attr_unique_id = f"{self.coordinator.config_entry.entry_id}_{description.key.lower()}"
-        except Exception:
-            # Fallback to default unique id behavior from GrocyEntity
-            pass
+
+        # Store the chore id this button will execute.
         self._chore_id = chore_id
 
     async def async_press(self) -> None:
@@ -303,9 +333,13 @@ class GrocyButtonEntity(GrocyEntity, ButtonEntity):
             )
             if entity:
                 await entity.async_update_ha_state(force_refresh=True)
-        except Exception:  # pragma: no cover - best-effort refresh
+        except (AttributeError, RuntimeError, TypeError) as err:  # pragma: no cover - best-effort refresh; noqa: BLE001
+            # Best-effort: if refresh fails for any reason, do not block
+            # the button press. Log the error for diagnostics.
             _LOGGER.debug(
-                "Failed to force refresh chores after executing chore %s", self._chore_id
+                "Failed to force refresh chores after executing chore %s: %s",
+                self._chore_id,
+                err,
             )
 
     @property
@@ -319,7 +353,9 @@ class GrocyButtonEntity(GrocyEntity, ButtonEntity):
         for c in chores:
             try:
                 cid, _ = _extract_chore_fields(c)
-            except Exception:
+            except (AttributeError, TypeError, ValueError) as err:
+                # Best-effort: if the chore item is malformed, skip it.
+                _LOGGER.debug("Error extracting chore fields: %s", err)
                 cid = None
             if cid is None:
                 continue
@@ -328,7 +364,8 @@ class GrocyButtonEntity(GrocyEntity, ButtonEntity):
                 if hasattr(c, "as_dict"):
                     try:
                         data = c.as_dict()
-                    except Exception:
+                    except (AttributeError, TypeError, ValueError) as err:
+                        _LOGGER.debug("as_dict() failed for chore %s: %s", cid, err)
                         data = c
                 else:
                     data = c
@@ -336,11 +373,13 @@ class GrocyButtonEntity(GrocyEntity, ButtonEntity):
                 # Ensure the returned structure is JSON-compatible
                 try:
                     return json.loads(json.dumps(data, cls=CustomJSONEncoder))
-                except Exception:
-                    # Best-effort fallback
+                except (TypeError, ValueError) as err:
+                    # Best-effort fallback for non-serializable objects
+                    _LOGGER.debug("JSON serialization failed for chore %s: %s", cid, err)
                     try:
                         return dict(data) if isinstance(data, dict) else {"value": str(data)}
-                    except Exception:
+                    except (TypeError, ValueError) as err2:
+                        _LOGGER.debug("Fallback serialization also failed for chore %s: %s", cid, err2)
                         return None
 
         return None
