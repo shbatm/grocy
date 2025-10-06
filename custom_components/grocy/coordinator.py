@@ -7,7 +7,6 @@ from typing import Any, Dict, List
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity import Entity
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
-from pygrocy2.grocy import Grocy
 
 from .const import (
     CONF_API_KEY,
@@ -49,9 +48,16 @@ class GrocyDataUpdateCoordinator(DataUpdateCoordinator[Dict[str, Any]]):
 
         (base_url, path) = extract_base_url_and_path(url)
 
-        self.grocy_api = Grocy(
-            base_url, api_key, path=path, port=port, verify_ssl=verify_ssl
-        )
+        # Import pygrocy2.Grocy lazily so importing this module doesn't
+        # fail during integration discovery when the dependency is not
+        # available in the development environment.
+        try:
+            from pygrocy2.grocy import Grocy
+        except Exception as err:  # pragma: no cover - environment dependent
+            _LOGGER.error("pygrocy2 is not installed: %s", err)
+            raise
+
+        self.grocy_api = Grocy(base_url, api_key, path=path, port=port, verify_ssl=verify_ssl)
         self.grocy_data = GrocyData(hass, self.grocy_api)
 
         self.available_entities: List[str] = []

@@ -68,7 +68,7 @@ class GrocyData:
 
         def wrapper():
             return [ProductWrapper(item, self.hass) for item in self.api._api_client.get_stock()]
-        
+
         return await self.hass.async_add_executor_job(wrapper)
 
     async def async_update_chores(self):
@@ -93,7 +93,17 @@ class GrocyData:
         """Get the configuration from Grocy."""
 
         def wrapper():
-            return self.api.get_system_config()
+            try:
+                return self.api.get_system_config()
+            except Exception as exc:  # pylint: disable=broad-except
+                # Surface the raw exception in the log to help troubleshooting when
+                # the Grocy server returns an unexpected (non-JSON) response or
+                # is unreachable.
+                _LOGGER.exception(
+                    "Failed to fetch Grocy system config: %s", exc
+                )
+                # Re-raise so callers (and Home Assistant) can react accordingly.
+                raise
 
         return await self.hass.async_add_executor_job(wrapper)
 

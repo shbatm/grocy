@@ -55,5 +55,7 @@ Tip: If you want your terminal session to have the venv activated for other comm
 
 Notes:
    - The Start task is configured to use the workspace root (`/workspaces/grocy`) as the Home Assistant configuration directory (passed as `--config /workspaces/grocy`). This makes it easy to edit `configuration.yaml` and `custom_components/` in the repo and have Home Assistant pick up the changes when restarted. If you prefer a different mount, edit `.vscode/tasks.json`.
+   Note: a sample `configuration.yaml` is included in the devcontainer at `.devcontainer/configuration.yaml`.
+   The setup script (`.devcontainer/scripts/setup_homeassistant_runtime.sh`) will copy this file into the runtime folder as `.homeassistant/configuration.yaml` when the container is created.
 - The devcontainer already maps container port 8123 to host port 9123 in `.devcontainer/devcontainer.json` so you can reach Home Assistant at localhost:9123 on the host machine.
  - The `.homeassistant/` directory is added to `.gitignore` so runtime state/config doesn't get committed.

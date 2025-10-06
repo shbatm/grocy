@@ -33,6 +33,7 @@ from .const import (
 from .coordinator import GrocyDataUpdateCoordinator
 from .grocy_data import GrocyData, async_setup_endpoint_for_image_proxy
 from .services import async_setup_services, async_unload_services
+from homeassistant.exceptions import ConfigEntryNotReady
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -44,15 +45,34 @@ async def async_setup_entry(hass: HomeAssistant, config_entry: ConfigEntry):
     coordinator: GrocyDataUpdateCoordinator = GrocyDataUpdateCoordinator(
         hass, config_entry
     )
-    coordinator.available_entities = await _async_get_available_entities(
-        coordinator.grocy_data
-    )
+    try:
+        coordinator.available_entities = await _async_get_available_entities(
+            coordinator.grocy_data
+        )
+    except Exception as exc:
+        _LOGGER.warning("Grocy config fetch failed during setup: %s", exc)
+        # Raise ConfigEntryNotReady so Home Assistant retries the entry later.
+        raise ConfigEntryNotReady("Grocy is not reachable or returned invalid data") from exc
     await coordinator.async_config_entry_first_refresh()
     hass.data.setdefault(DOMAIN, {})
     # store coordinator per config entry id to support multiple installs
     hass.data[DOMAIN][config_entry.entry_id] = coordinator
 
-    await hass.config_entries.async_forward_entry_setups(config_entry, PLATFORMS)
+    # Respect per-entry options: if the user opted out of creating chore
+    # buttons, avoid forwarding the 'button' platform for this entry. This
+    # prevents the button platform from even loading.
+    platforms = list(PLATFORMS)
+    try:
+        create_buttons = bool(
+            config_entry.options.get("create_chore_buttons", config_entry.data.get("create_chore_buttons", False))
+        )
+    except Exception:
+        create_buttons = False
+
+    if not create_buttons and "button" in platforms:
+        platforms.remove("button")
+
+    await hass.config_entries.async_forward_entry_setups(config_entry, platforms)
     await async_setup_services(hass, config_entry)
     await async_setup_endpoint_for_image_proxy(hass, config_entry.data)
 

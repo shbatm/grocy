@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Callable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, List
 
 from homeassistant.components.sensor import (
@@ -29,6 +29,7 @@ from .const import (
     MEAL_PLANS,
     PRODUCTS,
     TASKS,
+    CONF_CREATE_CHORE_BUTTONS,
 )
 from .coordinator import GrocyDataUpdateCoordinator
 from .entity import GrocyEntity
@@ -47,8 +48,22 @@ async def async_setup_entry(
     ]
     entities = []
     for description in SENSORS:
-        if description.exists_fn(coordinator.available_entities):
-            entity = GrocySensorEntity(coordinator, description, config_entry)
+        # Make a per-entry copy of the description so we can tweak
+        # entity_registry_enabled_default without mutating the shared
+        # module-level `SENSORS` tuple.
+        desc = description
+        try:
+            create_buttons = config_entry.options.get(
+                CONF_CREATE_CHORE_BUTTONS, False
+            )
+        except Exception:
+            create_buttons = False
+
+        if description.key == ATTR_CHORES and create_buttons:
+            desc = replace(description, entity_registry_enabled_default=True)
+
+        if desc.exists_fn(coordinator.available_entities):
+            entity = GrocySensorEntity(coordinator, desc, config_entry)
             coordinator.entities.append(entity)
             entities.append(entity)
         else:
